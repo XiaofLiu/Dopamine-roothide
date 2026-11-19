@@ -136,6 +136,23 @@ int syscall__sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp, const
 }
 int __sysctl_hook(int *name, u_int namelen, void *oldp, size_t *oldlenp, const void *newp, size_t newlen)
 {
+	// ===== 设备指纹伪装（MIB 方式）=====
+	if (device_spoof_active() && name && oldp && oldlenp) {
+		// hw.machine (CTL_HW=6, HW_MACHINE=1) -> 字符串
+		if (namelen == 2 && name[0] == CTL_HW && name[1] == HW_MACHINE) {
+			const char *fake = "iPhone13,2";
+			size_t n = strlen(fake) + 1;
+			if (*oldlenp >= n) { memcpy(oldp, fake, n); *oldlenp = n; return 0; }
+		}
+		// hw.memsize (CTL_HW=6, HW_MEMSIZE=24) -> uint64
+		if (namelen == 2 && name[0] == CTL_HW && name[1] == HW_MEMSIZE) {
+			if (*oldlenp >= sizeof(uint64_t)) { *(uint64_t*)oldp = 3849437184ULL; *oldlenp = sizeof(uint64_t); return 0; }
+		}
+		// hw.ncpu (CTL_HW=6, HW_NCPU=3) -> int
+		if (namelen == 2 && name[0] == CTL_HW && name[1] == HW_NCPU) {
+			if (*oldlenp >= sizeof(int)) { *(int*)oldp = 6; *oldlenp = sizeof(int); return 0; }
+		}
+	}
 	static int cached_namelen = 0;
 	static int cached_name[CTL_MAXNAME+2]={0};
 
