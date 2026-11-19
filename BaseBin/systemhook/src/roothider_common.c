@@ -9,6 +9,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <sys/utsname.h>
 
 #include "roothider.h"
 
@@ -20,6 +21,15 @@ void device_spoof_enable(void) {
 }
 static bool device_spoof_active(void) {
     return g_device_spoof;
+}
+
+// hook uname：改 machine 为 iPhone13,2（PDD 可能用 uname().machine 拿 device_name）
+int uname_hook(struct utsname *name) {
+    int r = uname(name);
+    if (device_spoof_active() && r == 0 && name) {
+        strlcpy(name->machine, "iPhone13,2", sizeof(name->machine));
+    }
+    return r;
 }
 
 pid_t __getppid()

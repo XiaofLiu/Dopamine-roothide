@@ -43,6 +43,7 @@ int __sysctl_hook(int *name, u_int namelen, void *oldp, size_t *oldlenp, const v
 int __sysctlbyname(const char *name, size_t namelen, void *oldp, size_t *oldlenp, void *newp, size_t newlen);
 int __sysctlbyname_hook(const char *name, size_t namelen, void *oldp, size_t *oldlenp, void *newp, size_t newlen);
 void device_spoof_enable(void);
+int uname_hook(struct utsname *name);
 
 int roothide_systemhook___execve_prehook(const char *path, char *const argv[], char *const envp[], void *orig, int (*trust_binary)(const char *path));
 int roothide_systemhook___execve_posthook(const char *path, char *const argv[], char *const envp[]);
