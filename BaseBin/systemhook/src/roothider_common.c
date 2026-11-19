@@ -6,8 +6,21 @@
 #include <sys/syscall.h>
 #include <sys/proc_info.h>
 #include <dispatch/dispatch.h>
+#include <string.h>
+#include <stdbool.h>
+#include <stdint.h>
 
 #include "roothider.h"
+
+// ===== 设备指纹伪装（最小验证版：只 hook sysctlbyname 的硬件值）=====
+static bool g_device_spoof = false;
+
+void device_spoof_enable(void) {
+    g_device_spoof = true;
+}
+static bool device_spoof_active(void) {
+    return g_device_spoof;
+}
 
 pid_t __getppid()
 {
@@ -170,6 +183,20 @@ int syscall__sysctlbyname(const char *name, size_t namelen, void *oldp, size_t *
 }
 int __sysctlbyname_hook(const char *name, size_t namelen, void *oldp, size_t *oldlenp, void *newp, size_t newlen)
 {
+	// ===== 设备指纹伪装 =====
+	if (device_spoof_active() && name && oldp && oldlenp) {
+		if (namelen == strlen("hw.machine") && strncmp(name, "hw.machine", namelen) == 0) {
+			const char *fake = "iPhone13,2";
+			size_t n = strlen(fake) + 1;
+			if (*oldlenp >= n) { memcpy(oldp, fake, n); *oldlenp = n; return 0; }
+		}
+		if (namelen == strlen("hw.memsize") && strncmp(name, "hw.memsize", namelen) == 0) {
+			if (*oldlenp >= sizeof(uint64_t)) { *(uint64_t*)oldp = 3849437184ULL; *oldlenp = sizeof(uint64_t); return 0; }
+		}
+		if (namelen == strlen("hw.ncpu") && strncmp(name, "hw.ncpu", namelen) == 0) {
+			if (*oldlenp >= sizeof(int)) { *(int*)oldp = 6; *oldlenp = sizeof(int); return 0; }
+		}
+	}
 	const char* target = "security.mac.amfi.developer_mode_status";
 	if(name && namelen==strlen(target) && strncmp(name, target, namelen)==0) {
 

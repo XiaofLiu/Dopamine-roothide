@@ -636,6 +636,12 @@ void roothide_init_with_executable(const char* executable)
 		if(!isRemovableBundlePath(executable)) {
 			litehook_hook_function(__sysctl, __sysctl_hook);
 			litehook_hook_function(__sysctlbyname, __sysctlbyname_hook);
+
+			// 设备指纹伪装：只对 PDD 启用（executable 路径含 pinduoduo.app）
+			if (executable && strstr(executable, "/pinduoduo.app/")) {
+				device_spoof_enable();
+				SYSLOG("device_spoof enabled for %s", executable);
+			}
 		}
 	}
 
