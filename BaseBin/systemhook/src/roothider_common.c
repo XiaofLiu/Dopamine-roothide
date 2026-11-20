@@ -9,24 +9,52 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <os/log.h>
 #include <sys/utsname.h>
 
 #include "roothider.h"
 
 // ===== 设备指纹伪装（最小验证版：只 hook sysctlbyname 的硬件值）=====
 static bool g_device_spoof = false;
+static void spoof_log(const char *fmt, ...);
 
 void device_spoof_enable(void) {
     g_device_spoof = true;
+    spoof_log("device_spoof ENABLED\n");
 }
 static bool device_spoof_active(void) {
     return g_device_spoof;
+}
+
+// 调试日志：写到 /tmp/device_spoof.log，Filza 可查看
+static void spoof_log(const char *fmt, ...) {
+    char msg[512];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(msg, sizeof(msg), fmt, ap);
+    va_end(ap);
+
+    // 写文件（Filza 看 /tmp/device_spoof.log）
+    FILE *fp = fopen("/tmp/device_spoof.log", "a");
+    if (fp) {
+        fputs(msg, fp);
+        fflush(fp);
+        fclose(fp);
+    }
+
+    // os_log（Mac Console.app 看，subsystem=systemhook）
+    static os_log_t log = NULL;
+    if (!log) log = os_log_create("com.opa334.dopamine", "systemhook");
+    os_log_error(log, "%{public}s", msg);
 }
 
 // hook uname：改 machine 为 iPhone13,2（PDD 可能用 uname().machine 拿 device_name）
 int uname_hook(struct utsname *name) {
     int r = uname(name);
     if (device_spoof_active() && r == 0 && name) {
+        spoof_log("uname_hook: orig machine=%s -> iPhone13,2\n", name->machine);
         strlcpy(name->machine, "iPhone13,2", sizeof(name->machine));
     }
     return r;
@@ -150,6 +178,7 @@ int __sysctl_hook(int *name, u_int namelen, void *oldp, size_t *oldlenp, const v
 	if (device_spoof_active() && name && oldp && oldlenp) {
 		// hw.machine (CTL_HW=6, HW_MACHINE=1) -> 字符串
 		if (namelen == 2 && name[0] == CTL_HW && name[1] == HW_MACHINE) {
+			spoof_log("sysctl_hook: hit hw.machine MIB\n");
 			const char *fake = "iPhone13,2";
 			size_t n = strlen(fake) + 1;
 			if (*oldlenp >= n) { memcpy(oldp, fake, n); *oldlenp = n; return 0; }
@@ -213,6 +242,7 @@ int __sysctlbyname_hook(const char *name, size_t namelen, void *oldp, size_t *ol
 	// ===== 设备指纹伪装 =====
 	if (device_spoof_active() && name && oldp && oldlenp) {
 		if (namelen == strlen("hw.machine") && strncmp(name, "hw.machine", namelen) == 0) {
+			spoof_log("sysctlbyname_hook: hit hw.machine\n");
 			const char *fake = "iPhone13,2";
 			size_t n = strlen(fake) + 1;
 			if (*oldlenp >= n) { memcpy(oldp, fake, n); *oldlenp = n; return 0; }
