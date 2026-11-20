@@ -632,18 +632,17 @@ void roothide_init_with_checkin(const char* rootdir)
 
 void roothide_init_with_executable(const char* executable)
 {
-	if (__builtin_available(iOS 16.0, *))
-	{
-		if(!isRemovableBundlePath(executable)) {
-			litehook_hook_function(__sysctl, __sysctl_hook);
-			litehook_hook_function(__sysctlbyname, __sysctlbyname_hook);
-			litehook_hook_function(uname, uname_hook);
+	// sysctl/sysctlbyname/uname hook：所有 iOS 版本都注册（不依赖 iOS 16）
+	// amfi 检测伪装（security.mac.amfi.developer_mode_status）在 iOS 15 上不命中，无害
+	if(!isRemovableBundlePath(executable)) {
+		litehook_hook_function(__sysctl, __sysctl_hook);
+		litehook_hook_function(__sysctlbyname, __sysctlbyname_hook);
+		litehook_hook_function(uname, uname_hook);
 
-			// 设备指纹伪装：只对 PDD 启用（executable 路径含 pinduoduo.app）
-			if (executable && strstr(executable, "/pinduoduo.app/")) {
-				device_spoof_enable();
-				SYSLOG("device_spoof enabled for %s", executable);
-			}
+		// 设备指纹伪装：只对 PDD 启用（executable 路径含 pinduoduo.app）
+		if (executable && strstr(executable, "/pinduoduo.app/")) {
+			device_spoof_enable();
+			SYSLOG("device_spoof enabled for %s", executable);
 		}
 	}
 
