@@ -36,18 +36,12 @@ static void spoof_log(const char *fmt, ...) {
     vsnprintf(msg, sizeof(msg), fmt, ap);
     va_end(ap);
 
-    // 写文件（Filza 看 /tmp/device_spoof.log）
-    FILE *fp = fopen("/tmp/device_spoof.log", "a");
-    if (fp) {
-        fputs(msg, fp);
-        fflush(fp);
-        fclose(fp);
-    }
+    // syslog LOG_ERR：最可靠，写到系统日志，Console / log show 可见，不被级别过滤
+    syslog(LOG_ERR, "device_spoof: %s", msg);
 
-    // os_log（Mac Console.app 看，subsystem=systemhook）
-    static os_log_t log = NULL;
-    if (!log) log = os_log_create("com.opa334.dopamine", "systemhook");
-    os_log_error(log, "%{public}s", msg);
+    // 写文件兜底（多个位置，覆盖沙盒限制）
+    FILE *fp = fopen("/var/tmp/device_spoof.log", "a");
+    if (fp) { fputs(msg, fp); fflush(fp); fclose(fp); }
 }
 
 
