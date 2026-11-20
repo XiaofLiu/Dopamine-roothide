@@ -50,15 +50,7 @@ static void spoof_log(const char *fmt, ...) {
     os_log_error(log, "%{public}s", msg);
 }
 
-// hook uname：改 machine 为 iPhone13,2（PDD 可能用 uname().machine 拿 device_name）
-int uname_hook(struct utsname *name) {
-    int r = uname(name);
-    if (device_spoof_active() && r == 0 && name) {
-        spoof_log("uname_hook: orig machine=%s -> iPhone13,2\n", name->machine);
-        strlcpy(name->machine, "iPhone13,2", sizeof(name->machine));
-    }
-    return r;
-}
+
 
 pid_t __getppid()
 {
